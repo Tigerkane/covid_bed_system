@@ -1,3 +1,4 @@
+﻿# redeploy-fix 2025-11-19T22:23:12.9352629+05:30
 import os
 import sys
 import logging
@@ -34,7 +35,7 @@ if not db_url:
     else:
         # fallback to sqlite for quick demo (ephemeral on Render)
         db_url = "sqlite:///data.db"
-        log.info("No DATABASE_URL or DB_* env vars found — falling back to sqlite (data is ephemeral).")
+        log.info("No DATABASE_URL or DB_* env vars found â€” falling back to sqlite (data is ephemeral).")
 
 # If someone provided a mysql URL without driver, ensure pymysql is present
 if db_url.startswith("mysql://"):
@@ -47,7 +48,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Log non-sensitive connection info (mask credentials)
 def masked_db_info(url: str) -> str:
     try:
-        # very small parser — only for logging; doesn't expose password
+        # very small parser â€” only for logging; doesn't expose password
         if "@" in url:
             left, right = url.split("@", 1)
             if "://" in left:
@@ -413,5 +414,6 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("1", "true", "yes")
     app.run(host="0.0.0.0", port=port, debug=debug)
+
 
 
