@@ -390,6 +390,15 @@ def slotbooking():
             return render_template("booking.html", hospitals=hospitals)
     return render_template("booking.html", hospitals=hospitals)
 
+# Ensure tables are created when the app starts under gunicorn or any WSGI server
+@app.before_first_request
+def init_db():
+    try:
+        db.create_all()
+        log.info("Database tables created/checked (before first request).")
+    except Exception:
+        log.exception("Error creating database tables on first request")
+
 # Startup: create tables (useful for demo). Failures will be logged.
 if __name__ == "__main__":
     try:
@@ -403,4 +412,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("1", "true", "yes")
     app.run(host="0.0.0.0", port=port, debug=debug)
+
 
