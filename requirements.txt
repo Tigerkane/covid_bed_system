@@ -1,7 +1,8 @@
-flask
+Flask
+Flask-SQLAlchemy
+Flask-Login
 pymysql
-SQLAlchemy
-flask_sqlalchemy
-flask_login
+werkzeug
 gunicorn
+cryptography
 
