@@ -1,0 +1,123 @@
+<!-- templates/booking.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book Bed Slot</title>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .page-title { font-size: 48px; color: #00bcd4; text-align: center; margin: 30px 0; }
+    .left-card { max-width: 420px; }
+    .right-table { margin-left: 30px; }
+    .table-head { background: #222; color: #fff; font-weight: 700; }
+    .card .form-control { margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="page-title">Book Bed Slot</div>
+
+    <!-- Flash messages -->
+    <div class="row justify-content-center mb-3">
+      <div class="col-md-8">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'warning' if category=='warning' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Left: booking form -->
+      <div class="col-md-4">
+        <div class="card left-card p-3">
+          <h4 class="text-center text-success">Covid Care Center</h4>
+
+          <form method="POST" action="{{ url_for('slotbooking') }}">
+            <input class="form-control" id="srfid" name="srfid" placeholder="SRF12345"
+                   value="{{ current_user.srfid if current_user.is_authenticated and current_user.srfid is not none else '' }}">
+
+            <select class="form-control" id="bedtype" name="bedtype" required>
+              <option value="" disabled selected>Choose Bed Type</option>
+              <option value="NormalBed">Normal Bed</option>
+              <option value="HICUBed">HICU Bed</option>
+              <option value="ICUBed">I.C.U Bed</option>
+              <option value="VENTILATORBed">Ventilator Bed</option>
+            </select>
+
+            <small class="d-block mb-2 text-muted">Select hospital code by looking at the availability table on the right</small>
+
+            <select class="form-control" name="hcode" id="hcode" required>
+              <option value="" disabled selected>Select Hospital Code</option>
+              {% for hospital in hospitals %}
+                <option value="{{ hospital.hcode }}">{{ hospital.hcode }} - {{ hospital.hname }}</option>
+              {% endfor %}
+            </select>
+
+            <input class="form-control" id="spo2" name="spo2" placeholder="Oxygen Level">
+            <input class="form-control" id="pname" name="pname" placeholder="Patient Name">
+            <input class="form-control" id="pphone" name="pphone" placeholder="Patient Phone Number">
+            <input class="form-control" id="paddress" name="paddress" placeholder="Patient Address">
+
+            <button type="submit" class="btn btn-info mt-2">Book Slot</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Right: available beds table -->
+      <div class="col-md-7 right-table">
+        <div class="card p-0">
+          <div class="card-header table-head text-center py-2">
+            <h4 class="mb-0">Available Beds</h4>
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-bordered mb-0">
+              <thead class="table-head">
+                <tr>
+                  <th>Hospital Code</th>
+                  <th>Hospital Name</th>
+                  <th>Normal Bed</th>
+                  <th>HICU Bed</th>
+                  <th>I.C.U Bed</th>
+                  <th>Ventilator Bed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if hospitals %}
+                  {% for hospital in hospitals %}
+                    <tr>
+                      <td>{{ hospital.hcode }}</td>
+                      <td>{{ hospital.hname }}</td>
+                      <td>{{ hospital.normalbed or 0 }}</td>
+                      <td>{{ hospital.hicubed or 0 }}</td>
+                      <td>{{ hospital.icubed or 0 }}</td>
+                      <td>{{ hospital.vbed or 0 }}</td>
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="6" class="text-center text-muted">No hospital data available</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div> <!-- row -->
+  </div> <!-- container -->
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

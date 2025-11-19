@@ -1,0 +1,9 @@
+{
+    "params":
+    {
+        "user":"admin",
+        "password":"admin",
+        "gmail-user":"enter-gmail-id",
+        "gmail-password":"enter-gmail-id-password(original password of gmail)"
+    }
+}
