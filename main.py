@@ -390,16 +390,17 @@ def slotbooking():
             return render_template("booking.html", hospitals=hospitals)
     return render_template("booking.html", hospitals=hospitals)
 
-# Ensure tables are created when the app starts under gunicorn or any WSGI server
-@app.before_first_request
-def init_db():
-    try:
+# Create tables at import time inside an app context so gunicorn workers have schema available.
+# This is safe for small apps and avoids relying on __main__ or decorators that may behave differently
+# in different WSGI import paths.
+try:
+    with app.app_context():
         db.create_all()
-        log.info("Database tables created/checked (before first request).")
-    except Exception:
-        log.exception("Error creating database tables on first request")
+        log.info("Database tables created/checked (import-time).")
+except Exception:
+    log.exception("Error creating database tables at import-time")
 
-# Startup: create tables (useful for demo). Failures will be logged.
+# Startup: also attempt to create tables when running directly (keeps local dev behaviour).
 if __name__ == "__main__":
     try:
         with app.app_context():
