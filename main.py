@@ -1,35 +1,79 @@
 import os
 import sys
+import logging
 from flask import Flask, redirect, render_template, flash, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, login_required, logout_user, login_user, LoginManager, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import pymysql
 
+# ensure pymysql is available for SQLAlchemy when using mysql
 pymysql.install_as_MySQLdb()
 
-DB_USER = os.environ.get("DB_USER", "root")
-DB_PASS = os.environ.get("DB_PASS", "shreyas")
-DB_HOST = os.environ.get("DB_HOST", "localhost")
-DB_NAME = os.environ.get("DB_NAME", "hospitaldb")
-SECRET_KEY = os.environ.get("SECRET_KEY", "shreyas")
+# basic logging to stdout (Render shows stdout/stderr in logs)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger(__name__)
 
+# Application config
 app = Flask(__name__)
-app.secret_key = SECRET_KEY
-app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = os.environ.get("SECRET_KEY", "shreyas")
+
+# Prefer a single DATABASE_URL env var. If absent, try DB_USER/DB_PASS/DB_HOST/DB_NAME.
+db_url = os.environ.get("DATABASE_URL") or os.environ.get("SQLALCHEMY_DATABASE_URI")
+
+if not db_url:
+    db_user = os.environ.get("DB_USER")
+    db_pass = os.environ.get("DB_PASS")
+    db_host = os.environ.get("DB_HOST")
+    db_name = os.environ.get("DB_NAME")
+
+    # If user provided individual DB_* vars, build a mysql connection string.
+    if db_user and db_pass and db_host and db_name:
+        # make sure pymysql dialect is included
+        db_url = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}/{db_name}"
+    else:
+        # fallback to sqlite for quick demo (ephemeral on Render)
+        db_url = "sqlite:///data.db"
+        log.info("No DATABASE_URL or DB_* env vars found — falling back to sqlite (data is ephemeral).")
+
+# If someone provided a mysql URL without driver, ensure pymysql is present
+if db_url.startswith("mysql://"):
+    db_url = "mysql+pymysql://" + db_url[len("mysql://"):]
+
+# Store in Flask config
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Log non-sensitive connection info (mask credentials)
+def masked_db_info(url: str) -> str:
+    try:
+        # very small parser — only for logging; doesn't expose password
+        if "@" in url:
+            left, right = url.split("@", 1)
+            if "://" in left:
+                proto, creds = left.split("://", 1)
+                if ":" in creds:
+                    user, _ = creds.split(":", 1)
+                    return f"{proto}://{user}:***@{right}"
+        return url
+    except Exception:
+        return "unknown"
+
+log.info(f"Using database: {masked_db_info(db_url)}")
+log.info(f"Python executable: {sys.executable}")
+
+# check cryptography presence (auth plugin issues)
+try:
+    import cryptography  # noqa: F401
+    log.info("cryptography available")
+except Exception:
+    log.info("cryptography not available (may be required for some MySQL auth methods)")
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
-login_manager.login_view = 'login'
+login_manager.login_view = "login"
 
-print(sys.executable)
-try:
-    import cryptography
-    print(cryptography.__file__)
-except Exception:
-    pass
-
+# Models (same as your original)
 class Test(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
@@ -86,6 +130,7 @@ def load_user(user_id):
         return user
     return Hospitaluser.query.get(uid)
 
+# All your routes (copied with no logic changes)
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -185,10 +230,11 @@ def hospitalUser():
 def test():
     try:
         a = Test.query.all()
-        print(a)
+        log.info(f"Test rows: {len(a)}")
         return 'My database is connected'
     except Exception as e:
-        return f"My database is not connected {e}"
+        log.exception("DB connection test failed")
+        return f"My database is not connected: {e}"
 
 @app.route("/logoutadmin")
 def logoutadmin():
@@ -339,15 +385,22 @@ def slotbooking():
             return redirect(url_for('slotbooking'))
         except Exception as e:
             db.session.rollback()
-            print(e)
+            log.exception("Error while booking")
             flash("Something went wrong while booking. Try again.", "danger")
             return render_template("booking.html", hospitals=hospitals)
     return render_template("booking.html", hospitals=hospitals)
 
+# Startup: create tables (useful for demo). Failures will be logged.
 if __name__ == "__main__":
     try:
         with app.app_context():
             db.create_all()
-    except Exception as e:
-        print(e)
-    app.run(debug=True)
+            log.info("Database tables created/checked.")
+    except Exception:
+        log.exception("Error creating database tables")
+
+    # If running the file directly, bind to PORT env var (Render uses $PORT). In production use Procfile + gunicorn.
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("1", "true", "yes")
+    app.run(host="0.0.0.0", port=port, debug=debug)
+
